@@ -233,6 +233,8 @@ function winvault {
     $DEFAULT_STORE_LOCATION = "CurrentUser"
     $MAX_CELL_SIZE = 50
 
+    $GlobalKeyToSecretMapping= @{}
+
     $keys = [array]$MyInvocation.BoundParameters.Keys
     $action = $keys[0]
 
@@ -372,6 +374,17 @@ function Encrypt {
     }
 
     foreach($property in $secrets.psobject.properties) {
+        if($outputFilename) {
+          $UniqueKeyForMapping = "${outputFilename}:$($property.name)"
+          if($GlobalKeyToSecretMapping.ContainsKey($UniqueKeyForMapping)) {
+            $originalProperty = $GlobalKeyToSecretMapping[$UniqueKeyForMapping]
+            if($property.value -eq $originalProperty.secretValuePlainText) {
+              $property.value = $originalProperty.secretValue
+              Continue
+            }
+          }
+        }
+
         try {
           $property.value = Invoke-ServiceFabricEncryptText -Text $property.value -CertThumbprint $thumbprint -CertStore -StoreLocation $DEFAULT_STORE_LOCATION -StoreName My
         }
@@ -418,10 +431,14 @@ function Encrypt {
 function DecryptSecretsInPlace {
     Param(
         [object] $secrets,
-        [string] $secretJsonFilename = ''
+        [string] $secretJsonFilename
     )
 
     foreach($property in $secrets.psobject.properties) {
+      $originalProperty = @{}
+      $originalProperty.name        = $property.name
+      $originalProperty.secretValue = $property.value
+
       $buffers = $property.value.split("|")
       $property.value = ""
 
@@ -444,6 +461,10 @@ function DecryptSecretsInPlace {
 
         $property.value += $decryptedValue
       }
+
+      $originalProperty.secretValuePlainText = $property.value
+      $UniqueKeyForMapping = "${secretJsonFilename}:$($property.name)"
+      $GlobalKeyToSecretMapping[$UniqueKeyForMapping] = $originalProperty
     }
 }
 

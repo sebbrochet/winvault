@@ -671,7 +671,7 @@ function DecryptToCSV {
       $jsonContentAsObject = Get-JSonContentAsObject $jsonFile.FullName
       $AllJSonContentAsObjectByJsonFile[$jsonFile.Name] = $jsonContentAsObject
       $properties = $jsonContentAsObject[2]
-      $allPropertyKeys = $allPropertyKeys + $properties.Keys | Select-Object -uniq
+      $allPropertyKeys = [array]($allPropertyKeys + $properties.Keys | Select-Object -uniq)
     }
 
     $allPropertyKeys = $allPropertyKeys | Sort-Object

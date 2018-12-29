@@ -42,6 +42,9 @@ function winvault {
     .PARAMETER updateCSV
     Switch to update in-place the content of an existing secrets JSON file based on a CSV file with the right format (<Secret Name>, <Secret Value>)
 
+    .PARAMETER schemaJSON
+    Switch to generate a JSON schema, either a default one or one based on an existing secrets JSON file
+
     .PARAMETER secretJsonFilename
     encrypted JSON file to perform the action on
 
@@ -107,6 +110,12 @@ function winvault {
     "C:\Users\martin\Documents\mysecretfile.json" should be encrypted.
 
     .EXAMPLE
+    winvault -schemaJSON "C:\Users\martin\Documents\mysecretfile.json"
+
+    Print the JSON schema associated with "C:\Users\martin\Documents\mysecretfile.json"
+    You can redirect the output to a file to use it with -validate switch
+
+    .EXAMPLE
     winvault -validate "C:\Users\martin\Documents\mysecretfile.json" "C:\Users\martin\Documents\myJsonSchema.json"
 
     Validate the content of "C:\Users\martin\Documents\mysecretfile.json" against the JSON schema defined in "C:\Users\martin\Documents\myJsonSchema.json"
@@ -133,6 +142,7 @@ function winvault {
 
     Update the content of "C:\Users\martin\Documents\mysecretfile.json" based "C:\Users\martin\Documents\myCsvFile.csv".
     "C:\Users\martin\Documents\myCsvFile.csv" is a CSV file with lines such as <Secret Name>, <Secret Value>
+
     .NOTES
     General notes
     #>
@@ -183,6 +193,10 @@ function winvault {
         [Parameter(Mandatory=$true, ParameterSetName='updateCSV')]
         $updateCSV,
 
+        [Switch]
+        [Parameter(Mandatory=$true, ParameterSetName='schemaJSON')]
+        $schemaJSON,
+
         [string]
         [Parameter(Mandatory=$true, ParameterSetName='newCert',   Position=1)]
         $subjectName,
@@ -196,6 +210,7 @@ function winvault {
         [Parameter(Mandatory=$true, ParameterSetName='validate',  Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='update',    Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='updateCSV', Position=1)]
+        [Parameter(Mandatory=$true, ParameterSetName='schemaJSON', Position=1)]
         $secretJsonFilename,
 
         [string]
@@ -289,6 +304,10 @@ function winvault {
         "updateCSV" {
             UpdateCSV -secretJsonFilename $secretJsonFilename -csvFilename $csvFilename
         }
+
+        "schemaJSON" {
+          GenerateSchemaJSON -secretJsonFilename $secretJsonFilename
+      }
     }
 }
 
@@ -364,7 +383,7 @@ function Encrypt {
     }
 
     if(!(CheckIfCertIsInStore $thumbprint)) {
-      throw "SSL cert with thumbprint $thumbprint not found in LocalMachine\my (i.e 'Local Computer\Personal\Certificates')."
+      throw "SSL cert with thumbprint $thumbprint not found in local store (Cert:\$DEFAULT_STORE_LOCATION\My)."
     }
 
     $secrets = $jsonObject.secrets
@@ -489,7 +508,7 @@ function Decrypt {
     }
 
     if(!(CheckIfCertIsInStore $thumbprint)) {
-      throw "SSL cert with thumbprint $thumbprint not found in LocalMachine\my (i.e 'Local Computer\Personal\Certificates')."
+      throw "SSL cert with thumbprint $thumbprint not found in local store (Cert:\$DEFAULT_STORE_LOCATION\My)."
     }
 
     $secrets = $jsonObject.secrets
@@ -529,7 +548,7 @@ function View {
     }
 
     if(!(CheckIfCertIsInStore $thumbprint)) {
-      throw "SSL cert with thumbprint $thumbprint not found in LocalMachine\my (i.e 'Local Computer\Personal\Certificates')."
+      throw "SSL cert with thumbprint $thumbprint not found in local store (Cert:\$DEFAULT_STORE_LOCATION\My)."
     }
 
     $secrets = $jsonObject.secrets
@@ -609,7 +628,7 @@ function Get-JSonContentAsObject {
     }
 
     if(!(CheckIfCertIsInStore $thumbprint)) {
-      throw "SSL cert with thumbprint $thumbprint not found in LocalMachine\my (i.e 'Local Computer\Personal\Certificates')."
+      throw "SSL cert with thumbprint $thumbprint not found in local store (Cert:\$DEFAULT_STORE_LOCATION\My)."
     }
 
     $secrets = $jsonObject.secrets
@@ -881,6 +900,45 @@ function Update {
     else {
       Write-Host "Content has NOT been changed." -ForegroundColor Green
     }
+}
+
+function generateSchemaJSON {
+  [CmdletBinding()]
+  Param(
+    [string] $secretJsonFilename
+  )
+
+  $jsonContentAsObject = Get-JSonContentAsObject $secretJsonFilename
+  $properties = $jsonContentAsObject[2]
+
+  $jsonSchemaAsObject = [ordered]@{}
+  $jsonSchemaAsObject['$schema'] = "http://json-schema.org/draft-06/schema#"
+  $jsonSchemaAsObject['description'] = "JSON schema for secrets JSON files"
+  $jsonSchemaAsObject['type'] = "object"
+  $jsonSchemaAsObject['required'] = @("isEncrypted", "thumbprint", "secrets")
+  $jsonSchemaAsObject['additionalProperties'] = $false
+
+  $propertiesForSecrets = [ordered]@{}
+  $properties.Keys | foreach  { $propertiesForSecrets[$_] =  [ordered]@{"description" = "FIXME"; "type" = "string" } }
+
+  $jsonSchemaAsObject['properties'] = [ordered]@{
+    "isEncrypted" = [ordered]@{
+      "type" = "boolean"
+    }
+    "thumbprint" = [ordered] @{
+      "description" = "Thumprint of SSL certificate to use for encryption/decryption"
+      "type" = "string"
+    }
+    "secrets" = [ordered]@{
+      "description" = "Secrets as properties"
+      "type" = "object"
+      "required" = $properties.Keys
+      "additionalProperties" = $false
+      "properties" = $propertiesForSecrets
+    }
+  }
+
+  $jsonSchemaAsObject |  ConvertTo-Json -Depth 10
 }
 
 Export-ModuleMember -Function winvault

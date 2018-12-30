@@ -98,9 +98,9 @@ function winvault {
     View as a table (key/value) the unencrypted content of "C:\Users\martin\Documents\mysecretfile.json" in the standard output
 
     .EXAMPLE
-    winvault -encrypt "C:\Users\martin\Documents\mysecretfile.json"
+    winvault -encrypt "C:\Users\martin\Documents\mysecretfile.json" -thumbprint ABCDEF01234567890123ABCDEF01234567890123
 
-    Encrypt in-place the content of "C:\Users\martin\Documents\mysecretfile.json"
+    Encrypt in-place the content of "C:\Users\martin\Documents\mysecretfile.json" using a X509 certificate stored in the local Store whose thumbprint is ABCDEF01234567890123ABCDEF01234567890123
     "C:\Users\martin\Documents\mysecretfile.json" should be unencrypted.
 
     .EXAMPLE
@@ -110,10 +110,10 @@ function winvault {
     "C:\Users\martin\Documents\mysecretfile.json" should be encrypted.
 
     .EXAMPLE
-    winvault -schemaJSON "C:\Users\martin\Documents\mysecretfile.json"
+    winvault -schemaJSON "C:\Users\martin\Documents\mysecretfile.json" > "C:\Users\martin\Documents\myJsonSchema.json"
 
-    Print the JSON schema associated with "C:\Users\martin\Documents\mysecretfile.json"
-    You can redirect the output to a file to use it with -validate switch
+    Print on STDOUT the JSON schema associated with "C:\Users\martin\Documents\mysecretfile.json"
+    And redirect the output to a file ("C:\Users\martin\Documents\myJsonSchema.json") to use it with -validate switch
 
     .EXAMPLE
     winvault -validate "C:\Users\martin\Documents\mysecretfile.json" "C:\Users\martin\Documents\myJsonSchema.json"
@@ -140,7 +140,7 @@ function winvault {
     .EXAMPLE
     winvault -updateCSV "C:\Users\martin\Documents\mysecretfile.json" "C:\Users\martin\Documents\myCsvFile.csv"
 
-    Update the content of "C:\Users\martin\Documents\mysecretfile.json" based "C:\Users\martin\Documents\myCsvFile.csv".
+    Update the content of "C:\Users\martin\Documents\mysecretfile.json" based on "C:\Users\martin\Documents\myCsvFile.csv".
     "C:\Users\martin\Documents\myCsvFile.csv" is a CSV file with lines such as <Secret Name>, <Secret Value>
 
     .NOTES
@@ -220,6 +220,7 @@ function winvault {
 
         [string]
         [Parameter(Mandatory=$true, ParameterSetName='create', Position=2)]
+        [Parameter(Mandatory=$true, ParameterSetName='encrypt', Position=2)]
         [ValidateLength(40, 40)]
         $thumbprint,
 
@@ -268,7 +269,7 @@ function winvault {
         }
 
         "encrypt" {
-            Encrypt -secretJsonFilename $secretJsonFilename
+            Encrypt -secretJsonFilename $secretJsonFilename -thumbprint $thumbprint
         }
 
         "decrypt" {
@@ -366,20 +367,35 @@ function Encrypt {
     [CmdletBinding()]
     Param(
       [string] $secretJsonFilename,
-      [string] $outputFilename = ''
+      [string] $outputFilename = '',
+      [string] $thumbprint = ''
     )
 
+    $secretJsonFileIsDirty = $false
+
     $jsonObject = Get-Content -Raw -Path $secretJsonFilename | ConvertFrom-Json
-    $thumbprint = $jsonObject.thumbprint
-
-    if(!$thumbprint) {
-      throw "'thumbprint' property not found."
-    }
-
     $isEncrypted = $jsonObject.isEncrypted
 
     if($isEncrypted) {
+      Write-Host "Secrets JSON file is already encrypted, decrypting it first before encrypting it with new certificate..."
+      Decrypt -secretJsonFilename $secretJsonFilename
+      $jsonObject = Get-Content -Raw -Path $secretJsonFilename | ConvertFrom-Json
+      $isEncrypted = $jsonObject.isEncrypted
+    }
+
+    if($isEncrypted) {
       throw "'isEncrypted' property should be false before trying to encrypt."
+    }
+
+    if(($thumbprint) -and ($jsonObject.thumbprint) -and ($jsonObject.thumbprint -ne $thumbprint)) {
+      $secretJsonFileIsDirty = $true
+    }
+    else {
+      $thumbprint = $jsonObject.thumbprint
+    }
+
+    if(!$thumbprint) {
+      throw "'thumbprint' property not found."
     }
 
     if(!(CheckIfCertIsInStore $thumbprint)) {
@@ -393,7 +409,7 @@ function Encrypt {
     }
 
     foreach($property in $secrets.psobject.properties) {
-        if($outputFilename) {
+        if(($outputFilename) -and (!$secretJsonFileIsDirty)) {
           $UniqueKeyForMapping = "${outputFilename}:$($property.name)"
           if($GlobalKeyToSecretMapping.ContainsKey($UniqueKeyForMapping)) {
             $originalProperty = $GlobalKeyToSecretMapping[$UniqueKeyForMapping]
@@ -594,7 +610,7 @@ function Edit {
 
       if($newHash -ne $initialHash) {
         Write-Host "Content has been changed, updating..."  -ForegroundColor Yellow
-        Encrypt $outputFilename -outputFilename $secretJsonFilename
+        Encrypt $outputFilename -outputFilename $secretJsonFilename -thumbprint $thumbprint
       }
       else {
         Write-Host "Content has NOT been changed."
@@ -603,7 +619,7 @@ function Edit {
     }
     else {
       Start-Process $EDITOR -ArgumentList @($secretJsonFilename, $EDITOR_PARAMS) -Wait
-      Encrypt $secretJsonFilename
+      Encrypt $secretJsonFilename -thumbprint $thumbprint
     }
 }
 

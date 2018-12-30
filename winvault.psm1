@@ -204,7 +204,6 @@ function winvault {
         [string]
         [Parameter(Mandatory=$true, ParameterSetName='create',    Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='edit',      Position=1)]
-        [Parameter(Mandatory=$true, ParameterSetName='view',      Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='encrypt',   Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='decrypt',   Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='validate',  Position=1)]
@@ -214,6 +213,7 @@ function winvault {
         $secretJsonFilename,
 
         [string]
+        [Parameter(Mandatory=$true, ParameterSetName='view',      Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='editCSV',   Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='viewCSV',   Position=1)]
         $filenamePattern,
@@ -277,7 +277,7 @@ function winvault {
         }
 
         "view" {
-            View -secretJsonFilename $secretJsonFilename
+            View -filenamePattern $filenamePattern
         }
 
         "viewCSV" {
@@ -510,32 +510,8 @@ function Decrypt {
         [string] $outputFilename = ''
     )
 
-    $jsonObject = Get-Content -Raw -Path $secretJsonFilename | ConvertFrom-Json
-    $thumbprint = $jsonObject.thumbprint
-
-    if(!$thumbprint) {
-      throw "'thumbprint' property not found."
-    }
-
-    $isEncrypted = $jsonObject.isEncrypted
-
-    if(!$isEncrypted) {
-      throw "'isEncrypted' property should be true before trying to decrypt."
-    }
-
-    if(!(CheckIfCertIsInStore $thumbprint)) {
-      throw "SSL cert with thumbprint $thumbprint not found in local store (Cert:\$DEFAULT_STORE_LOCATION\My)."
-    }
-
-    $secrets = $jsonObject.secrets
-
-    if(!$secrets) {
-      throw "'secrets' property not found."
-    }
-
-    DecryptSecretsInPlace $secrets $secretJsonFilename
-
-    $jsonObject.isEncrypted = $false
+    $jsonContentAsObject = Get-JSonContentAsObject $secretJsonFilename
+    $jsonObject = $jsonContentAsObject[1]
 
     if(!$outputFilename) {
       $outputFilename = $secretJsonFilename
@@ -547,37 +523,17 @@ function Decrypt {
 function View {
     [CmdletBinding()]
     Param(
-        [string] $secretJsonFilename
+        [string] $filenamePattern
     )
 
-    $jsonObject = Get-Content -Raw -Path $secretJsonFilename | ConvertFrom-Json
-    $thumbprint = $jsonObject.thumbprint
+    $jsonFileList = Get-ChildItem -Path $filenamePattern -Recurse
 
-    if(!$thumbprint) {
-      throw "'thumbprint' property not found."
+    foreach($jsonFile in $jsonFileList) {
+      $secretJsonFilename = $jsonFile.FullName
+      $jsonContentAsObject = Get-JSonContentAsObject $secretJsonFilename
+      $jsonObject = $jsonContentAsObject[1]
+      $jsonObject | ConvertTo-Json
     }
-
-    $isEncrypted = $jsonObject.isEncrypted
-
-    if(!$isEncrypted) {
-      throw "'isEncrypted' property should be true before trying to view."
-    }
-
-    if(!(CheckIfCertIsInStore $thumbprint)) {
-      throw "SSL cert with thumbprint $thumbprint not found in local store (Cert:\$DEFAULT_STORE_LOCATION\My)."
-    }
-
-    $secrets = $jsonObject.secrets
-
-    if(!$secrets) {
-      throw "'secrets' property not found."
-    }
-
-    DecryptSecretsInPlace $secrets $secretJsonFilename
-
-    $jsonObject.isEncrypted = $false
-
-    $jsonObject | ConvertTo-Json
 }
 
 function Edit {

@@ -888,7 +888,7 @@ function generateSchemaJSON {
   $jsonSchemaAsObject['description'] = "JSON schema for secrets JSON files"
   $jsonSchemaAsObject['type'] = "object"
   $jsonSchemaAsObject['required'] = @("isEncrypted", "thumbprint", "secrets")
-  $jsonSchemaAsObject['additionalProperties'] = $false
+  $jsonSchemaAsObject['additionalProperties'] = $true
 
   $propertiesForSecrets = [ordered]@{}
   $properties.Keys | foreach  { $propertiesForSecrets[$_] =  [ordered]@{"description" = "FIXME"; "type" = "string" } }

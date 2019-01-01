@@ -823,7 +823,7 @@ function Update {
       [string] $secretValue
     )
 
-    $jsonObject = view -secretJsonFilename $secretJsonFilename | ConvertFrom-Json
+    $jsonObject = view -filenamePattern $secretJsonFilename | ConvertFrom-Json
     $secrets = $jsonObject.secrets
 
     $propertyExists = $false

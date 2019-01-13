@@ -170,6 +170,7 @@ Describe "winvault commands" {
     }
   }
 
+  <#
   Context "Validate secrets file with a JSON schema (-validate)" {
     It "Should validate the JSON schema for a secrets file" {
       $cert = winvault -newCert "winvault unit tests"
@@ -187,3 +188,4 @@ Describe "winvault commands" {
     }
   }
 }
+#>

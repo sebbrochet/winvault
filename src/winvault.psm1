@@ -272,8 +272,9 @@ function winvault {
             if(Test-Path $secretJsonFilename) {
               throw "File $secretJsonFilename already exists."
             }
-
-            Create -secretJsonFilename $secretJsonFilename -thumbprint $thumbprint -interactive:$interactive
+            else {
+              Create -secretJsonFilename $secretJsonFilename -thumbprint $thumbprint -interactive:$interactive
+            }
         }
 
         "encrypt" {

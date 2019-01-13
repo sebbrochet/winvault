@@ -66,6 +66,9 @@ function winvault {
     .PARAMETER secretValue
     Value of the secret to update with
 
+    .PARAMETER interactive
+    switch to launch editor to edit secrets after calling -create command (default is $true)
+
     .EXAMPLE
     winvault -newCert "Winvault key"
 
@@ -243,7 +246,11 @@ function winvault {
 
         [string]
         [Parameter(Mandatory=$true, ParameterSetName='update', ValueFromPipeline=$True, Position=3)]
-        $secretValue
+        $secretValue,
+
+        [switch]
+        [Parameter(Mandatory=$false, ParameterSetName='create', Position=2)]
+        $interactive = $true
     )
 
     $DEFAULT_STORE_LOCATION = "CurrentUser"
@@ -253,6 +260,8 @@ function winvault {
 
     $keys = [array]$MyInvocation.BoundParameters.Keys
     $action = $keys[0]
+
+    $EDITOR, $EDITOR_PARAMS, $CSVEDITOR, $CSVEDITOR_PARAMS = refreshEditorsPreference
 
     switch ($action) {
         "newCert" {
@@ -264,8 +273,7 @@ function winvault {
               throw "File $secretJsonFilename already exists."
             }
 
-            $EDITOR, $EDITOR_PARAMS, $CSVEDITOR, $CSVEDITOR_PARAMS = refreshEditorsPreference
-            Create -secretJsonFilename $secretJsonFilename -thumbprint $thumbprint
+            Create -secretJsonFilename $secretJsonFilename -thumbprint $thumbprint -interactive:$interactive
         }
 
         "encrypt" {
@@ -285,12 +293,10 @@ function winvault {
         }
 
         "edit" {
-            $EDITOR, $EDITOR_PARAMS, $CSVEDITOR, $CSVEDITOR_PARAMS = refreshEditorsPreference
             Edit -secretJsonFilename $secretJsonFilename
         }
 
         "editCSV" {
-            $EDITOR, $EDITOR_PARAMS, $CSVEDITOR, $CSVEDITOR_PARAMS = refreshEditorsPreference
             EditCSV -filenamePattern $filenamePattern -maxCellSize $maxCellSize
         }
 
@@ -349,7 +355,8 @@ function Create {
     [CmdletBinding()]
     Param(
       [string] $secretJsonFilename,
-      [string] $thumbprint
+      [string] $thumbprint,
+      [switch] $interactive
     )
 
     $emptyJsonObject = @{
@@ -360,7 +367,9 @@ function Create {
 
     $emptyJsonObject | ConvertTo-Json | Set-Content -Path $secretJsonFilename
 
-    Edit -secretJsonFilename $secretJsonFilename
+    if($interactive) {
+      Edit -secretJsonFilename $secretJsonFilename
+    }
 }
 
 function Encrypt {
@@ -542,6 +551,20 @@ function Edit {
         [string] $secretJsonFilename
     )
 
+    if(!(Test-Path $EDITOR)) {
+      Write-Error "Configured editor executable not found."
+      Write-Error "Please check and configure corresponding environment variables: WINVAULT_EDITOR and WINVAULT_EDITOR_PARAMS"
+      Write-Error "Current values:"
+      Write-Error "WINVAULT_EDITOR = $EDITOR"
+      Write-Error "WINVAULT_EDITOR_PARAMS = $EDITOR_PARAMS"
+      Write-Error "You can do it globally using the System settings or use Powershell as below:"
+      Write-Error '$Env:WINVAULT_EDITOR = <location of the editor executable>'
+      Write-Error '$Env:WINVAULT_EDITOR = <parameters to use>'
+      Write-Error "For example, you can use these commands for Visual Studio code (default install)"
+      Write-Error '$Env:WINVAULT_EDITOR = "C:\Program Files (x86)\Microsoft VS Code\Code.exe"'
+      Write-Error '$Env:WINVAULT_EDITOR_PARAMS = "--new-window --wait"'
+    }
+
     $jsonObject = Get-Content -Raw -Path $secretJsonFilename | ConvertFrom-Json
     $thumbprint = $jsonObject.thumbprint
 
@@ -569,7 +592,7 @@ function Edit {
         Encrypt $outputFilename -outputFilename $secretJsonFilename -thumbprint $thumbprint
       }
       else {
-        Write-Host "Content has NOT been changed."
+        Write-Host "Content has NOT been changed." -ForegroundColor Green
       }
       Remove-Item $outputFilename
     }
@@ -739,6 +762,20 @@ function EditCSV {
       [string] $filenamePattern,
       [int] $maxCellSize = 0
     )
+
+    if(!(Test-Path $CSVEDITOR)) {
+      Write-Error "Configured CSV editor executable not found."
+      Write-Error "Please check and configure corresponding environment variables: WINVAULT_CSVEDITOR and WINVAULT_CSVEDITOR_PARAMS"
+      Write-Error "Current values:"
+      Write-Error "WINVAULT_CSVEDITOR = $EDITOR"
+      Write-Error "WINVAULT_CSVEDITOR_PARAMS = $EDITOR_PARAMS"
+      Write-Error "You can do it globally using the System settings or use Powershell as below:"
+      Write-Error '$Env:WINVAULT_CSVEDITOR = <location of the editor executable>'
+      Write-Error '$Env:WINVAULT_CSVEDITOR = <parameters to use>'
+      Write-Error "For example, you can use these commands for Rons editor (default install)"
+      Write-Error '$Env:WINVAULT_CSVEDITOR = "C:\Program Files (x86)\Rons Place Apps\Rons Editor\Editor.WinGUI.exe"'
+      Write-Error '$Env:WINVAULT_CSVEDITOR_PARAMS = ""'
+    }
 
     if($maxCellSize -gt 0) {
       $csvResults = DecryptToCSV -filenamePattern $filenamePattern -maxCellSize $maxCellSize

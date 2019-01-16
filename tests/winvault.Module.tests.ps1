@@ -48,7 +48,7 @@ Describe "winvault commands" {
     It "Should fail while creating a new secrets file if it already exists" {
       $secretJsonFilename = "mysecretfile.json"
       "dummy" | Out-File $secretJsonFilename
-      winvault -create -secretJsonFilename $secretJsonFilename -thumbprint "DUMMY" -interactive:$false | Should -Throw "File $secretJsonFilename already exists."
+      winvault -create -secretJsonFilename $secretJsonFilename -thumbprint "1234567890123456789012345678901234567890" -interactive:$false | Should -Throw "File $secretJsonFilename already exists."
 
       Remove-Item $cert.PSPath
     }
@@ -190,5 +190,28 @@ Describe "winvault commands" {
     }
   }
   #>
+
+  Context "Update a secrets file (-delete)" {
+    It "Should delete a secret in a secrets file" {
+      $cert = winvault -newCert "winvault unit tests"
+      $secretJsonFilename = "mysecretfile.json"
+      $secretName = "Password"
+      $secretName1 = "Password1"
+      $secretValue = "s3cr3tV@1u3"
+      $secretValue1 = "s3cr3tV@1u3A"
+      winvault -create  -secretJsonFilename $secretJsonFilename -thumbprint $cert.thumbprint -interactive:$false
+      winvault -encrypt -secretJsonFilename $secretJsonFilename -thumbprint $cert.thumbprint
+      winvault -update  -secretJsonFilename $secretJsonFilename -secretName $secretName  -secretValue $secretValue
+      winvault -update  -secretJsonFilename $secretJsonFilename -secretName $secretName1 -secretValue $secretValue1
+      $jsonObject = Get-Content -Raw -Path $secretJsonFilename | ConvertFrom-Json
+      ($jsonObject.secrets.psobject.properties | Measure-Object).count | Should Be 2
+
+      winvault -delete -secretJsonFilename $secretJsonFilename -secretName $secretName
+      $jsonObject = Get-Content -Raw -Path $secretJsonFilename | ConvertFrom-Json
+      ($jsonObject.secrets.psobject.properties | Measure-Object).count | Should Be 1
+
+      Remove-Item $cert.PSPath
+    }
+  }
 
 }

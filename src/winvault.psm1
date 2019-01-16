@@ -69,6 +69,9 @@ function winvault {
     .PARAMETER interactive
     switch to launch editor to edit secrets after calling -create command (default is $true)
 
+    .PARAMETER delete
+    Switch to delete a key/value pair in an existing secrets JSON file
+
     .EXAMPLE
     winvault -newCert "Winvault key"
 
@@ -146,6 +149,11 @@ function winvault {
     Update the content of "C:\Users\martin\Documents\mysecretfile.json" based on "C:\Users\martin\Documents\myCsvFile.csv".
     "C:\Users\martin\Documents\myCsvFile.csv" is a CSV file with lines such as <Secret Name>, <Secret Value>
 
+    .EXAMPLE
+    winvault -delete "C:\Users\martin\Documents\mysecretfile.json" "password"
+
+    Delete secret named "password" in "C:\Users\martin\Documents\mysecretfile.json" secrets file.
+
     .NOTES
     General notes
     #>
@@ -200,6 +208,10 @@ function winvault {
         [Parameter(Mandatory=$true, ParameterSetName='schemaJSON')]
         $schemaJSON,
 
+        [Switch]
+        [Parameter(Mandatory=$true, ParameterSetName='delete')]
+        $delete,
+
         [string]
         [Parameter(Mandatory=$true, ParameterSetName='newCert',   Position=1)]
         $subjectName,
@@ -213,6 +225,7 @@ function winvault {
         [Parameter(Mandatory=$true, ParameterSetName='update',    Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='updateCSV', Position=1)]
         [Parameter(Mandatory=$true, ParameterSetName='schemaJSON', Position=1)]
+        [Parameter(Mandatory=$true, ParameterSetName='delete',    Position=1)]
         $secretJsonFilename,
 
         [string]
@@ -242,6 +255,7 @@ function winvault {
 
         [string]
         [Parameter(Mandatory=$true, ParameterSetName='update', Position=2)]
+        [Parameter(Mandatory=$true, ParameterSetName='delete', Position=2)]
         $secretName,
 
         [string]
@@ -315,7 +329,11 @@ function winvault {
 
         "schemaJSON" {
           GenerateSchemaJSON -secretJsonFilename $secretJsonFilename
-      }
+        }
+
+        "delete" {
+          Delete -secretJsonFilename $secretJsonFilename -secretName $secretName
+        }
     }
 }
 
@@ -732,6 +750,8 @@ function UpdateCSV {
   $properties = $jsonContentAsObject[2]
   $csvLines = Import-Csv $csvFilename
 
+  $propertiesToKeep = @()
+
   foreach($csvLine in $csvLines) {
     $shouldUpdate = $false
 
@@ -753,6 +773,13 @@ function UpdateCSV {
     }
     if($shouldUpdate) {
       Update $secretJsonFilename $propertyName $propertyValue
+    }
+    $propertiesToKeep += $propertyName
+  }
+
+  foreach($propertyName in $properties.Keys) {
+    if(!($propertyName -in $propertiesToKeep)) {
+      Delete $secretJsonFilename $propertyName
     }
   }
 }
@@ -949,6 +976,39 @@ function generateSchemaJSON {
   }
 
   $jsonSchemaAsObject |  ConvertTo-Json -Depth 10
+}
+
+function Delete {
+  [CmdletBinding(SupportsShouldProcess=$true)]
+    Param(
+      [string] $secretJsonFilename,
+      [string] $secretName
+    )
+
+    $jsonObject = Get-Content -Raw -Path $secretJsonFilename | ConvertFrom-Json
+    $secrets = $jsonObject.secrets
+
+    $propertyExists = $false
+
+    foreach($property in $secrets.psobject.properties) {
+      if($property.Name -eq $secretName) {
+        $propertyExists = $true
+        break
+      }
+    }
+
+    if($propertyExists) {
+      if ($pscmdlet.ShouldProcess("Deleting secret '$secretName'...", "Delete")) {
+        Write-Host "Deleting secret '$secretName'..." -ForegroundColor Yellow
+        $secrets.psobject.properties.Remove($secretName)
+        Write-Host "Content has been changed, updating..." -ForegroundColor Yellow
+        $jsonObject | ConvertTo-Json | Set-Content -Path $secretJsonFilename
+      }
+    }
+    else {
+      Write-Host "Secret $secretName not found."
+      Write-Host "Content has NOT been changed." -ForegroundColor Green
+    }
 }
 
 Export-ModuleMember -Function winvault

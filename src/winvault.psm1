@@ -396,7 +396,8 @@ function Encrypt {
     Param(
       [string] $secretJsonFilename,
       [string] $outputFilename = '',
-      [string] $thumbprint = ''
+      [string] $thumbprint = '',
+      [switch] $isDirty = $false
     )
 
     $secretJsonFileIsDirty = $false
@@ -415,15 +416,17 @@ function Encrypt {
       throw "'isEncrypted' property should be false before trying to encrypt."
     }
 
-    if(($thumbprint) -and ($jsonObject.thumbprint) -and ($jsonObject.thumbprint -ne $thumbprint)) {
-      $secretJsonFileIsDirty = $true
-    }
-    else {
+    if(!$thumbprint) {
       $thumbprint = $jsonObject.thumbprint
     }
 
     if(!$thumbprint) {
       throw "'thumbprint' property not found."
+    }
+
+    if($isDirty -or ($thumbprint -and $jsonObject.thumbprint -and ($jsonObject.thumbprint -ne $thumbprint))) {
+      $secretJsonFileIsDirty = $true
+      Write-Host "Thumbprint has changed, all secrets values will be updated..."  -ForegroundColor Yellow
     }
 
     if(!(CheckIfCertIsInStore $thumbprint)) {
@@ -608,7 +611,13 @@ function Edit {
 
       if($newHash -ne $initialHash) {
         Write-Host "Content has been changed, updating..."  -ForegroundColor Yellow
-        Encrypt $outputFilename -outputFilename $secretJsonFilename -thumbprint $thumbprint
+        $jsonNewObject = Get-Content -Raw -Path $outputFilename | ConvertFrom-Json
+        if($jsonNewObject.thumbprint -ne $thumbprint) {
+          Encrypt $outputFilename -outputFilename $secretJsonFilename -isDirty:$true
+        }
+        else {
+          Encrypt $outputFilename -outputFilename $secretJsonFilename
+        }
       }
       else {
         Write-Host "Content has NOT been changed." -ForegroundColor Green

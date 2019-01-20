@@ -68,6 +68,8 @@ Describe "winvault commands" {
 
       $cert2 = winvault -newCert "winvault unit tests"
       winvault -encrypt -secretJsonFilename $secretJsonFilename -thumbprint $cert2.thumbprint
+      $jsonObject = Get-Content -Raw -Path $secretJsonFilename | ConvertFrom-Json
+      $jsonObject.thumbprint | Should Be $cert2.thumbprint
 
       Remove-Item $cert.PSPath
       Remove-Item $cert2.PSPath

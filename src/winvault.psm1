@@ -425,6 +425,7 @@ function Encrypt {
     }
 
     if($isDirty -or ($thumbprint -and $jsonObject.thumbprint -and ($jsonObject.thumbprint -ne $thumbprint))) {
+      $jsonObject.thumbprint = $thumbprint
       $secretJsonFileIsDirty = $true
       Write-Host "Thumbprint has changed, all secrets values will be updated..."  -ForegroundColor Yellow
     }

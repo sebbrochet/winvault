@@ -242,7 +242,6 @@ function winvault {
 
         [int]
         [Parameter(Mandatory=$false, ParameterSetName='viewCSV', Position=2)]
-        [Parameter(Mandatory=$false, ParameterSetName='editCSV', Position=2)]
         $maxCellSize = 0,
 
         [string]
@@ -268,7 +267,6 @@ function winvault {
     )
 
     $DEFAULT_STORE_LOCATION = "CurrentUser"
-    $MAX_CELL_SIZE = 50
 
     $GlobalKeyToSecretMapping= @{}
 
@@ -312,7 +310,7 @@ function winvault {
         }
 
         "editCSV" {
-            EditCSV -filenamePattern $filenamePattern -maxCellSize $maxCellSize
+            EditCSV -filenamePattern $filenamePattern
         }
 
         "validate" {
@@ -702,7 +700,7 @@ function DecryptToCSV {
   [OutputType([Hashtable],[Object[]])]
     Param(
       [string] $filenamePattern,
-      [int]$maxCellSize = $MAX_CELL_SIZE
+      [int]$maxCellSize = 0
     )
 
     $jsonFileList = Get-ChildItem -Path $filenamePattern -Recurse
@@ -729,7 +727,7 @@ function DecryptToCSV {
         $properties = $properties = $jsonContentAsObject[2]
         if($properties.ContainsKey($propertyKey)) {
           $propertyValue = $properties[$propertyKey]
-          if($propertyValue.Length -gt $maxCellSize) {
+          if(($maxCellSize -gt 0) -and ($propertyValue.Length -gt $maxCellSize)) {
             $cellTooLong = $true
             break
           }
@@ -797,8 +795,7 @@ function UpdateCSV {
 function EditCSV {
     [CmdletBinding()]
     Param(
-      [string] $filenamePattern,
-      [int] $maxCellSize = 0
+      [string] $filenamePattern
     )
 
     if(!(Test-Path $CSVEDITOR)) {
@@ -815,12 +812,7 @@ function EditCSV {
       Write-Error '$Env:WINVAULT_CSVEDITOR_PARAMS = ""'
     }
 
-    if($maxCellSize -gt 0) {
-      $csvResults = DecryptToCSV -filenamePattern $filenamePattern -maxCellSize $maxCellSize
-    }
-    else {
-      $csvResults = DecryptToCSV -filenamePattern $filenamePattern
-    }
+    $csvResults = DecryptToCSV -filenamePattern $filenamePattern
 
     $tmpFilename = [System.IO.Path]::GetTempFileName()
     $outputFilename = "$tmpFilename.csv"

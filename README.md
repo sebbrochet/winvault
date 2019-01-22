@@ -4,9 +4,9 @@ winvault
 [![Build Status](https://img.shields.io/appveyor/ci/sebbrochet/winvault.svg)](https://ci.appveyor.com/project/sebbrochet/winvault)
 [![Test Status](https://img.shields.io/appveyor/tests/sebbrochet/winvault.svg)](https://ci.appveyor.com/project/sebbrochet/winvault/build/tests)
 
-winvault is a complete solution to manage the lifecycle of your secrets as key/value pairs into encrypted JSON files.  
-It uses X509 certificates stored in your computer to do the encryption.   
-As the files are encrypted they can be stored and versioned into git.  
+winvault is a complete solution to manage the lifecycle of your secrets as key/value pairs into encrypted JSON files.
+It uses X509 certificates stored in your computer to do the encryption.
+As the files are encrypted they can be stored and versioned into git.
 
 ## Installation
 * Clone or download this repository
@@ -32,7 +32,7 @@ SYNTAX
 
     winvault -edit [-secretJsonFilename] <String> [-WhatIf] [-Confirm] [<CommonParameters>]
 
-    winvault -editCSV [-filenamePattern] <String> [[-maxCellSize] <Int32>] [-WhatIf] [-Confirm] [<CommonParameters>]
+    winvault -editCSV [-filenamePattern] <String> [-WhatIf] [-Confirm] [<CommonParameters>]
 
     winvault -view [-filenamePattern] <String> [-WhatIf] [-Confirm] [<CommonParameters>]
 

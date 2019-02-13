@@ -870,16 +870,21 @@ function Validate {
   $json       = Get-Content -Raw -Path $outputFilename
   $schemaJson = Get-Content -Raw -Path $schemaJsonFilename
 
+  $isValidationOK = $true
+
   try {
     [Newtonsoft.Json.Schema.SchemaExtensions]::Validate([Newtonsoft.Json.Linq.JToken]::Parse($json), [Newtonsoft.Json.Schema.JSchema]::Parse($schemaJson))
   }
   catch [System.Exception] {
     $ErrorMessage = $_.Exception.Message
     Write-Host "Error while validating JSon file against Schema: $ErrorMessage" -ForegroundColor Red
+    $isValidationOK = $false
   }
   finally {
     Remove-Item $outputFilename
   }
+
+  return $isValidationOK
 }
 
 function Update {

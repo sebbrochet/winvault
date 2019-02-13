@@ -556,7 +556,7 @@ function View {
         [string] $filenamePattern
     )
 
-    $jsonFileList = Get-ChildItem -Path $filenamePattern -Recurse
+    $jsonFileList = Get-ChildItem -Path $filenamePattern
 
     foreach($jsonFile in $jsonFileList) {
       $secretJsonFilename = $jsonFile.FullName

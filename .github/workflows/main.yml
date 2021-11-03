@@ -1,0 +1,20 @@
+name: Unit tests with GitHub Actions
+on: push
+jobs:
+  test:
+    runs-on: windows-2019
+    steps:
+      - name: Winvault test module
+        id: winvault_test_module
+        uses: zyborg/pester-tests-report@v1
+        with:
+          include_paths: Tests                    
+          report_name: winvault_module_tests
+          report_title: Winvault Tests
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+    - name: dump test results
+      shell: pwsh
+      run: |
+        Write-Host 'Total Tests Executed...:  ${{ steps.winvault_test_module.outputs.total_count }}'
+        Write-Host 'Total Tests PASSED.....:  ${{ steps.winvault_test_module.outputs.passed_count }}'
+        Write-Host 'Total Tests FAILED.....:  ${{ steps.winvault_test_module.outputs.failed_count }}'

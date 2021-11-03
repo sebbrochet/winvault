@@ -4,11 +4,13 @@ jobs:
   test:
     runs-on: windows-2019
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
       - name: Winvault test module
-        id: winvault_test_module
+        id: winvault_test_module        
         uses: zyborg/pester-tests-report@v1
         with:
-          include_paths: ../../tests                    
+          include_paths: tests                    
           report_name: winvault_module_tests
           report_title: Winvault Tests
           github_token: ${{ secrets.GITHUB_TOKEN }}

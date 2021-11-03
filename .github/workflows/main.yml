@@ -12,9 +12,9 @@ jobs:
           report_name: winvault_module_tests
           report_title: Winvault Tests
           github_token: ${{ secrets.GITHUB_TOKEN }}
-    - name: dump test results
-      shell: pwsh
-      run: |
-        Write-Host 'Total Tests Executed...:  ${{ steps.winvault_test_module.outputs.total_count }}'
-        Write-Host 'Total Tests PASSED.....:  ${{ steps.winvault_test_module.outputs.passed_count }}'
-        Write-Host 'Total Tests FAILED.....:  ${{ steps.winvault_test_module.outputs.failed_count }}'
+      - name: dump test results
+        shell: pwsh
+        run: |
+          Write-Host 'Total Tests Executed...:  ${{ steps.winvault_test_module.outputs.total_count }}'
+          Write-Host 'Total Tests PASSED.....:  ${{ steps.winvault_test_module.outputs.passed_count }}'
+          Write-Host 'Total Tests FAILED.....:  ${{ steps.winvault_test_module.outputs.failed_count }}'

@@ -8,7 +8,7 @@ jobs:
         id: winvault_test_module
         uses: zyborg/pester-tests-report@v1
         with:
-          include_paths: Tests                    
+          include_paths: ../../tests                    
           report_name: winvault_module_tests
           report_title: Winvault Tests
           github_token: ${{ secrets.GITHUB_TOKEN }}
